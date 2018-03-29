@@ -6,6 +6,10 @@ Fler.cz to SuperFaktura.cz synchronization api. Synchronize your paid invoices t
 1) Open connector.php
 2) Fill informations for connect to MySQL database
 3) Fill all tokens from fler.cz and superfaktura.cz for connect from your account on this sites
+4) Open terminal and  run command:
+```bash
+composer install 
+```
 
 ## FAQ
 * How to function?

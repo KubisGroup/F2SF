@@ -10,6 +10,10 @@ Fler.cz to SuperFaktura.cz synchronization api. Synchronize your paid invoices t
 ```bash
 composer install 
 ```
+5) In terminal run 
+```bash
+cd /path/to/api && clear && php connector.php
+```
 
 ## FAQ
 * How to function?

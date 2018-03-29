@@ -1,0 +1,5 @@
+{
+    "require": {
+        "superfaktura/apiclient": "^1.1"
+    }
+}

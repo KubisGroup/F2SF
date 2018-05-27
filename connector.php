@@ -5,6 +5,7 @@
  * Connect your Fler.cz eshop with superfaktura.cz. 
  * Its simple, you need only API keys not more because it is fully automated
  */
+<<<<<<< HEAD
 
  /**
   * Config file
@@ -12,10 +13,27 @@
   * @source ./config.php
   */
 require_once __DIR__."/config.php";
+=======
+define("MySQL_Server", "localhost");
+define("MySQL_User", "");
+define("MySQL_Port", "3306");
+define("MySQL_Password", "");
+define("MySQL_Database", "");
+define("MySQL_Prefix", "");
+/**
+ * FLER settings
+ * set your secret and public key
+ * look at: https://www.fler.cz/prodejce/nastroje/api?view=keys
+*/
+define("FLER_public_KEY", "");
+define("FLER_secret_KEY", "");
+require_once "./F2SF.php";
+>>>>>>> 0be20776b7fddbec9cf5bf6cc835d72eb28c8bc5
 
 /**
  * Show DEBUG PHP ERRORS
  */
+<<<<<<< HEAD
 if(DEBUG) {
 	error_reporting(E_ALL);
 	ini_set('display_errors', DEBUG);
@@ -32,6 +50,12 @@ if(DEBUG) {
   */
 require_once __DIR__."/functions.php";
 
+=======
+DEFINE('SFAPI_EMAIL', '');
+DEFINE('SFAPI_KEY', '');
+DEFINE('SFAPI_MODULE', 'Cron F2SF synchronizer'); // TITLE OF MODULE FE. 'WOOCOMMERCE MODULE'
+DEFINE('SFAPI_APPTITLE', 'Kubis Group F2SF connertor'); // TITLE OF YOUR APPLICATION FE.
+>>>>>>> 0be20776b7fddbec9cf5bf6cc835d72eb28c8bc5
 
 /**
  * Condition what we use

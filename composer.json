@@ -1,5 +1,7 @@
 {
     "require": {
-        "superfaktura/apiclient": "^1.1"
+        "superfaktura/apiclient": "^1.1",
+        "dompdf/dompdf": "^0.8.2",
+        "phpunit/phpunit": "^7.1"
     }
 }

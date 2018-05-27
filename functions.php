@@ -1,4 +1,11 @@
 <?php
+/**
+ * Kubis Group F2FS API connector
+ * 
+ * Connect your Fler.cz eshop with superfaktura.cz. 
+ * Its simple, you need only API keys not more because it is fully automated
+ */
+
 function dbType($type) {
 	switch($type) {
 		default:

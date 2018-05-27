@@ -6,13 +6,20 @@
  * Its simple, you need only API keys not more because it is fully automated
  */
 
-// Fler.cz api driver
+
+/**
+ * require Fler.cz api driver
+ */
 require_once(__DIR__.'/flerAPI/Fler_API_REST_Driver.php');
 
-//composer autoloader
+/**
+ * composer autoloader
+ * 
+ * Auto load composer superfaktura
+ */
 require_once(__DIR__.'/vendor/autoload.php');
 
-class flerConnecor {
+class flerConnector_I {
 	private $flerAPI;
 	private $superfakturaAPI;
 	//database configurations
@@ -44,17 +51,31 @@ class flerConnecor {
 			"create" => "CREATE TABLE IF NOT EXISTS `[prefix]superfakturaSync`
 				(
 					`id` INT AUTO_INCREMENT NOT NULL,
-					`flerInvoice_id` INT NOT NULL COMMENT 'Fler Invoice ID',
-					`flerInvoice_cid` BOOLEAN COMMENT 'Fler Client (BUYER) ID',
-					`flerInvoice_order_created` DATETIME COMMENT 'Fler Order Created',
+					`flerOrder_id` INT NOT NULL COMMENT 'Fler Order ID',
+					`flerOrder_cid` INT NOT NULL COMMENT 'Fler Client (BUYER) ID',
+					`flerOrder_created` DATETIME COMMENT 'Fler Order Created',
 					`sync_date` TIMESTAMP COMMENT 'Last synchronization timestamp',
-					`superfaktura_create_date` TIMESTAMP COMMENT 'Created timestamp',
-					`superfaktura_update_date` TIMESTAMP COMMENT 'Update timestamp',
+					`superfaktura_create_date` DATETIME COMMENT 'Created timestamp',
+					`superfaktura_update_date` DATETIME COMMENT 'Update timestamp',
 					`superfaktura_invoice_id` INT NOT NULL COMMENT 'Invoice ID', 
 					`superfaktura_cid` INT NOT NULL COMMENT 'Client (BUYER) ID',
 					`superfaktura_paid_type` ENUM( 'regular', 'proforma', 'estimate', 'cancel', 'order', 'delivery' ) CHARACTER SET utf8 COLLATE utf8_general_ci COMMENT 'Invoice type',
 					PRIMARY KEY (`id`)
 				)  CHARACTER SET utf8 COLLATE utf8_general_ci
+			"
+		),
+		array (
+			"name" => "flerOrders",
+			"create" => "CREATE TABLE IF NOT EXISTS `[prefix]flerOrders`
+				(
+					`id` INT AUTO_INCREMENT NOT NULL,
+					`flerOrder_id` INT NOT NULL COMMENT 'Fler order ID',
+					`flerBuyer_id` INT NOT NULL COMMENT 'Fler Client (BUYER) ID',
+					`flerOrder_created` DATETIME COMMENT 'Fler Order Created',
+					`sync_date` TIMESTAMP COMMENT 'Last synchronization timestamp',
+					`flerOrder_state` TEXT CHARACTER SET utf8 COLLATE utf8_general_ci  COMMENT 'Fler order state', 
+					PRIMARY KEY (`id`)
+				)  CHARACTER SET utf8 COLLATE utf8_general_ci COMMENT 'Fler order LIST with status VYRIZENA and UHRAZENA'
 			"
 		)
 	);
@@ -63,12 +84,9 @@ class flerConnecor {
 	 * Paid statuses 
 	 */
 	private $FpaidStatuses = Array (
-		"UHRAZENA" => "regular", // Bežná
+		"UHRAZENA" => "proforma", // Bežná
 		"VYRIZENA" => "proforma", // Zálohová faktura
-		"ODMITNUTA" => "cancel", // Dobropis
-		"PRIJATA" => "order", // Přijatá objednávka
-		"" => "estimate", // Cenová nabídka
-		"VYRIZENA" => "delivery" // Dodací list
+		"ODMITNUTA" => "proforma", // Dobropis
 	);
 
 	private $SFpaidStatuses = Array ( 
@@ -84,7 +102,7 @@ class flerConnecor {
 	 * Construct
 	 * 
 	 */
-	public function __construct($publicKey, $secretKey, $SFAPI_EMAIL, $SFAPI_KEY, $SFAPI_APPTITLE, $SFAPI_MODULE) {
+	public function __construct($publicKey, $secretKey) {
 		//FLER connect
 		$this->flerAPI = new Fler_API_REST_Driver();
 		$this->flerAPI->setKeys($publicKey, $secretKey);
@@ -115,9 +133,6 @@ class flerConnecor {
 		try {
 			$result = $this->database->query("SELECT * FROM ".$prefix.$table." LIMIT 1");
 			$result->execute();
-
-			$result = $this->database->query("TRUNCATE ".$prefix.$table."");
-			$result->execute();
 		} catch (Exception $e) {
 			//create table
 			try {
@@ -140,7 +155,7 @@ class flerConnecor {
 		unset($response);
 		$response = $this->flerAPI->request('GET', '/api/rest/seller/invoice/order/list');
 
-		if($response->http_code == 200 && empty($response->data["error"])) {
+		if( ($response->http_code == 200 && empty($response->data["error"]) ) || $response->http_code == 301) {
 			//read all invoices
 			for($inv = 0; $inv < count($response->data); $inv++) {
 				$invoice = $response->data[$inv];
@@ -172,7 +187,7 @@ class flerConnecor {
 			}
 		}
 		else {
-			die("Api error (".$response->data["error_number"]."): \"".$response->data["error"]."\"\n");
+			die("Api Invoice error (".(empty($response->data["error_number"]) ? "No error code" : $response->data["error_number"]).") with  http code (".$response->http_code."): \"".(empty($response->data["error"]) ? "No error message" : $response->data["error"])."\"\n");
 		}
 	}
 
@@ -227,12 +242,12 @@ class flerConnecor {
 				$setInvoice = Array (
 					//all items are optional, if not used, they will be filled automatically
 					'name' => 'Fler.cz objednávka č.'.$invoiceInfo["id_order"],
-					'issued_by' => 'Kubis Group F2SF robot api',
-					'issued_by_phone' => '+420774015557',
-					'issued_by_email' => 'jan.kubka@kubisgroup.org',
-					'issued_by_web' => 'http://www.kubisgroup.org',
+					'issued_by' => COMPANY_issued_by,
+					'issued_by_phone' => COMPANY_issued_by_phone,
+					'issued_by_email' => COMPANY_issued_by_email,
+					'issued_by_web' => COMPANY_issued_by_web,
 					'order_no' => $invoiceInfo["id_order"],
-					'invoice_no_formatted' => $invoiceInfo["id"],
+					'invoice_no_formatted' => $invoiceInfo["evid_num"],
 					'created' => $invoiceInfo["date_created"],
 					'delivery' => $invoiceInfo["date_issue"],
 					'due' => $invoiceInfo["date_due"],
@@ -240,7 +255,7 @@ class flerConnecor {
 					'variable' => $invoicePayment["variable_symbol"], //variable symbol / reference
 					'constant' => $invoicePayment["constant_symbol"], //constant symbol
 					'specific' => $invoicePayment["specific_symbol"], //specific symbol
-					'already_paid' => ($orderState == "regular" ? true : false), //has the invoices been already paid?
+					'already_paid' => ($orderInfo["state"] == "UHRAZENA" || $orderInfo["state"] == "VYRIZENA" ? true : false), //has the invoices been already paid?
 					'comment' => 'Fler.cz objednávka č.'.$invoiceInfo["id_order"],
 					'invoice_currency' => $invoicePaymentSummary["currency"],
 					'bank_accounts' => array(
@@ -267,13 +282,14 @@ class flerConnecor {
 				}
 				//database informations
 				$infoDB = Array (
-					"flerInvoice_id" => $invoiceInfo["id"], //Fler Invoice ID
-					"flerInvoice_cid" => $orderBuyerID, //Fler Client (BUYER) ID
-					"flerInvoice_order_created" => $orderCreated, //Fler Order Created
+					"flerOrder_id" => $invoiceInfo["id_order"], //Fler Invoice ID
+					"flerOrder_cid" => $orderBuyerID, //Fler Client (BUYER) ID
+					"flerOrder_created" => $orderCreated, //Fler Order Created
 					"superfaktura_paid_type" => $orderState, //Invoice type
 				);
+				var_dump($infoDB);
 				//save data to superfaktura but only paid orders
-				if($orderStateNormal == "UHRAZENA") {
+				if($orderStateNormal == "UHRAZENA" || $orderStateNormal == "VYRIZENA") {
 					$this->superFacturaAdd($infoDB, $clientData, $setInvoice, $addInvoiceItem);
 					unset($infoDB, $clientData, $setInvoice, $addInvoiceItem, $invoiceDetail);
 				}
@@ -300,34 +316,6 @@ class flerConnecor {
 	}
 
 	private function superFacturaAdd(array $infoDB, array $clientData, array $setInvoice, array $addInvoiceItems) {
-		/*
-		`flerInvoice_id` $infoDB["flerInvoice_id"]//Fler Invoice ID
-		`flerInvoice_cid`$infoDB["flerInvoice_cid"]//Fler Client (BUYER) ID
-		`flerInvoice_order_created` $infoDB["flerInvoice_order_created"]//Fler Order Created
-		`sync_date` //Last synchronization timestamp
-		`superfaktura_create_date` //Created timestamp
-		`superfaktura_update_date` //Update timestamp
-		`superfaktura_invoice_id` [id]//Invoice ID 
-		`superfaktura_cid` ["client_id"] //Client (BUYER) ID
-		`superfaktura_paid_type` $infoDB["superfaktura_paid_type"] //Invoice type
-
-		INSERT INTO `ac_superfakturaSync` (
-		`id` ,
-		`flerInvoice_id` ,
-		`flerInvoice_cid` ,
-		`flerInvoice_order_created` ,
-		`sync_date` ,
-		`superfaktura_create_date` ,
-		`superfaktura_update_date` ,
-		`superfaktura_invoice_id` ,
-		`superfaktura_cid` ,
-		`superfaktura_paid_type`
-		)
-		VALUES (
-		NULL , '?', '?', ? , CURRENT_TIMESTAMP , NOW( ) , NULL , '?', '?', 'regular'
-		);
-
-		*/
 		//SuperFactura connect
 		$superfakturaAPI = new SFAPIclientCZ(SFAPI_EMAIL, SFAPI_KEY, SFAPI_APPTITLE, SFAPI_MODULE);
 		//setup client data
@@ -342,53 +330,51 @@ class flerConnecor {
 		}
 		//save invoice
 		$response = $superfakturaAPI->save();
-		unset($infoDB, $clientData, $setInvoice, $addInvoiceItem, $invoiceDetail, $superfakturaAPI);
-		// response object contains data about created invoices, or error messages respectively
-		if($response->error === 0) {
-			//complete information about created invoice
-			echo "<pre>Data: <br>\n";
-			var_dump($response->data);
-			echo "</pre><hr>";
 
-			/*try {
+		// response object contains data about created invoices, or error messages respectively
+		if($response->error == 0 || $response->error_message->invoice_no_formatted !== "Doklad nebyl vytvořený, protože se stejným číslem už existuje jiný doklad") {
+			//complete information about created invoice
+			// save syncroniation data
+			echo "inserting <strong>invoice</strong> order: " .$infoDB["flerOrder_id"]."<br>";
+			try {
 				$result = $this->database->prepare("INSERT INTO `".$this->databasePrefix."superfakturaSync` (
-					`id` ,
-					`flerInvoice_id` ,
-					`flerInvoice_cid` ,
-					`flerInvoice_order_created` ,
-					`sync_date` ,
-					`superfaktura_create_date` ,
-					`superfaktura_update_date` ,
-					`superfaktura_invoice_id` ,
-					`superfaktura_cid` ,
-					`superfaktura_paid_type`
-					)
-					VALUES (
-					NULL , '?', '?', ? , CURRENT_TIMESTAMP , NOW( ) , NULL , '?', '?', 'regular'
+						`id` ,
+						`flerOrder_id`,
+						`flerOrder_cid`,
+						`flerOrder_created`,
+						`sync_date`,
+						`superfaktura_create_date` ,
+						`superfaktura_update_date` ,
+						`superfaktura_invoice_id` ,
+						`superfaktura_cid` ,
+						`superfaktura_paid_type`
+					)VALUES (
+						NULL , 
+						'".$infoDB["flerOrder_id"]."', 
+						'".$infoDB["flerOrder_cid"]."', 
+						'".$infoDB["flerOrder_created"]."' , 
+						CURRENT_TIMESTAMP , 
+						NOW( ) , 
+						NULL , 
+						'".$response->data->Invoice->id."', 
+						'".$response->data->Invoice->client_id."', 
+						'regular'
 					);"
 				);
-				$result->execute(array(
-					$invoice["id"],
-					$invoice["evid_num"],
-					$invoice["position"],
-					$invoice["for_year"],
-					$invoice["for_month"],
-					$invoice["id_order"]
-				));
-				$this->getInvoiceDetail($invoice["id"]);
+				$result->execute();
 			} catch (Exception $e) {
-				die("Insert invoice error: \n" . $e);
-			}*/
+				die("Insert Sync invoice error: \n" . $e);
+			}
 
 			return 0;
 		} else {
 			//error descriptions
-			echo "<pre>Data: <br>\n";
+			echo "<pre>\n";
 			var_dump($response->error_message);
 			echo "</pre><hr>";
 			return $response->error;
 		}
-		unset($response);
+		unset($response, $infoDB, $clientData, $setInvoice, $addInvoiceItem, $invoiceDetail, $superfakturaAPI);
 	}
 
 }

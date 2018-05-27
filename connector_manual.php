@@ -37,8 +37,7 @@ require_once __DIR__."/functions.php";
  * Condition what we use
  * If we use Invoices or Orders...
  */
-for($FLER_getOrders = 0; $FLER_getOrders <=1; $FLER_getOrders++) {
-	if($FLER_getOrders){
+
 	/**
 	  * Require functions
 	  * 
@@ -49,22 +48,16 @@ for($FLER_getOrders = 0; $FLER_getOrders <=1; $FLER_getOrders++) {
  	* Connect to fler api
  	*/
 	$flerCon = new flerConnector_O(FLER_public_KEY, FLER_secret_KEY);
-	} else {
-		/**
-			* Require functions
-			* 
-			* @source ./F2SF_I.php
-			*/
-		require_once __DIR__."/F2SF_I.php";
-		/**
-		* Connect to fler api
-		*/
-		$flerCon = new flerConnector_I(FLER_public_KEY, FLER_secret_KEY);
-	}
+
 	/**
 	 * Run api
 	 * 
 	 * @return errorcode|null
 	 */
-	$flerCon->getInvoices();
-}
+	if(isset($_GET["orderID"]) && !empty($_GET["orderID"])) {
+		echo "Manual add ID ".$_GET["orderID"]."\n";
+		$flerCon->getOrderDetail2($_GET["orderID"]) ;
+	} else {
+		echo "Please fill the order ID\n";
+	}
+	
